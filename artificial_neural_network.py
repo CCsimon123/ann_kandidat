@@ -23,7 +23,7 @@ get_score = True
 num_of_input = 4
 batch_size = 5000
 learning_rate = 0.0001
-number_of_epochs = 0
+number_of_epochs = 10
 
 path_to_save_model_to = r'saved_models\final_model1.pth'
 path_to_load_from = r'saved_models\final_model1.pth'
@@ -122,7 +122,7 @@ def main():
     net = Net().to(device)
     # loads the old model
     if load_model:
-        net.load_state_dict(torch.load(path_to_load_from))
+        net.load_state_dict(torch.load(path_to_load_from, map_location=device))
 
     loss_func = torch.nn.MSELoss()
     optimizer = torch.optim.AdamW(net.parameters(), lr=learning_rate)
