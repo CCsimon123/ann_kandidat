@@ -16,7 +16,7 @@ train_data_frac = 0.9
 load_model = True
 save_model = True
 show_histogram = False
-show_val_acc = False
+show_val_acc = True
 show_train_acc = False
 get_score = True
 
