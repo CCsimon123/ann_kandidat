@@ -26,7 +26,7 @@ get_score = True
 num_of_input = 3
 batch_size = 5000
 learning_rate = 0.001
-number_of_epochs = 20
+number_of_epochs = 100
 
 path_to_save_model_to = r'saved_models\final_model_azm_no_feature3.pth'
 path_to_load_from = r'saved_models\final_model_azm_no_feature3.pth'
