@@ -26,7 +26,7 @@ get_score = True
 num_of_input = 3
 batch_size = 5000
 learning_rate = 0.001
-number_of_epochs = 100
+number_of_epochs = 30
 
 path_to_save_model_to = r'saved_models\final_model_azm_no_feature3.pth'
 path_to_load_from = r'saved_models\final_model_azm_no_feature3.pth'
@@ -83,11 +83,25 @@ class Net(torch.nn.Module):
         self.hid1 = torch.nn.Linear(num_of_input, 30)
         #self.drop = torch.nn.Dropout(0.5) # add dropout if the model starts to overfit
         self.hid2 = torch.nn.Linear(30, 30)
+        self.hid3 = torch.nn.Linear(30, 30)
+        self.hid4 = torch.nn.Linear(30, 30)
+        self.hid5 = torch.nn.Linear(30, 30)
+        self.hid6 = torch.nn.Linear(30, 30)
+        self.hid7 = torch.nn.Linear(30, 30)
+        self.hid8 = torch.nn.Linear(30, 30)
+
         self.output = torch.nn.Linear(30, 1)
 
     def forward(self, x):
         z = torch.relu(self.hid1(x))
         z = torch.relu(self.hid2(z))
+        z = torch.relu(self.hid3(z))
+        z = torch.relu(self.hid4(z))
+        z = torch.relu(self.hid5(z))
+        z = torch.relu(self.hid6(z))
+        z = torch.relu(self.hid7(z))
+        z = torch.relu(self.hid8(z))
+        '''
         z = torch.relu(self.hid2(z))
         z = torch.relu(self.hid2(z))
         z = torch.relu(self.hid2(z))
@@ -96,6 +110,7 @@ class Net(torch.nn.Module):
         z = torch.relu(self.hid2(z))
         z = torch.relu(self.hid2(z))
         z = torch.relu(self.hid2(z))
+        '''
         z = self.output(z)
         return z
 
