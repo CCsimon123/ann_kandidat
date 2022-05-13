@@ -11,23 +11,26 @@ from sklearn.metrics import r2_score
 from matplotlib import cm
 from scipy.interpolate import interpn
 
+# Created by Simon Carlson April 2022
+
+# Flags
 create_new_data = False
 train_data_frac = 0.9
 load_model = True
 save_model = True
 show_histogram = False
-show_val_acc = True
+show_val_acc = False
 show_train_acc = False
 get_score = True
 
-num_of_input = 4
+num_of_input = 3
 batch_size = 5000
-learning_rate = 0.0001
-number_of_epochs = 10
+learning_rate = 0.001
+number_of_epochs = 20
 
-path_to_save_model_to = r'saved_models\final_model1.pth'
-path_to_load_from = r'saved_models\final_model1.pth'
-path_to_data = r'data\params_final.csv'
+path_to_save_model_to = r'saved_models\final_model_azm_no_feature3.pth'
+path_to_load_from = r'saved_models\final_model_azm_no_feature3.pth'
+path_to_data = r'data\params_inc_azi.csv'
 train_path = Path(r'data\train_data.csv')
 val_path = Path(r'data\val_data.csv')
 
@@ -40,20 +43,17 @@ else:
 
 
 if create_new_data:
-    df = pd.read_csv(path_to_data, names=['SWH', 'mean', 'var'])
-
+    df = pd.read_csv(path_to_data, names=['SWH', 'mean', 'var', 'azm', 'flag'])
     # Removes null values
     df.drop(df[df['SWH'].isnull()].index, inplace=True)
     rng = RandomState(4)
+
     df['mean'] = (df['mean'] - df['mean'].mean()) / (df['mean'].std())
     df['var'] = (df['var'] - df['var'].mean()) / (df['var'].std())
-    df['mean_divided_var'] = df['mean']/df['var']
-    df['mean_times_var'] = df['mean']*df['var']
+    df['azm'] = (df['azm'] - df['azm'].mean()) / (df['azm'].std())
 
-    df['mean_divided_var'] = (df['mean_divided_var']-df['mean_divided_var'].mean())/(df['mean_divided_var'].std())
-    df['mean_times_var'] = (df['mean_times_var'] - df['mean_times_var'].mean()) / (df['mean_times_var'].std())
-    df = df[['mean', 'var', 'mean_divided_var', 'mean_times_var', 'SWH']]
     #df = df[['mean', 'var', 'SWH']]
+    df = df[['mean', 'var', 'azm', 'SWH']]
 
     train = df.sample(frac=train_data_frac, random_state=rng)
     test = df.loc[~df.index.isin(train.index)]
@@ -76,26 +76,26 @@ class CustomCsvDataset():
         label = self.dataset[idx, self.dataset.size(1) - 1]
         return input_data, label
 
+
 class Net(torch.nn.Module):
     def __init__(self):
         super(Net, self).__init__()
         self.hid1 = torch.nn.Linear(num_of_input, 30)
-        #self.drop = torch.nn.Dropout(0.25) # add dropout if the model starts to overfit
+        #self.drop = torch.nn.Dropout(0.5) # add dropout if the model starts to overfit
         self.hid2 = torch.nn.Linear(30, 30)
-        self.hid3 = torch.nn.Linear(30, 30)
         self.output = torch.nn.Linear(30, 1)
 
     def forward(self, x):
         z = torch.relu(self.hid1(x))
         z = torch.relu(self.hid2(z))
-        z = torch.relu(self.hid3(z))
-        z = torch.relu(self.hid3(z))
-        z = torch.relu(self.hid3(z))
-        z = torch.relu(self.hid3(z))
-        z = torch.relu(self.hid3(z))
-        z = torch.relu(self.hid3(z))
-        z = torch.relu(self.hid3(z))
-        z = torch.relu(self.hid3(z))
+        z = torch.relu(self.hid2(z))
+        z = torch.relu(self.hid2(z))
+        z = torch.relu(self.hid2(z))
+        z = torch.relu(self.hid2(z))
+        z = torch.relu(self.hid2(z))
+        z = torch.relu(self.hid2(z))
+        z = torch.relu(self.hid2(z))
+        z = torch.relu(self.hid2(z))
         z = self.output(z)
         return z
 
@@ -106,8 +106,9 @@ def main():
 
     training_data = np.loadtxt(train_path, dtype=np.float32, delimiter=",", skiprows=1)
     if show_histogram:
-        bin = np.linspace(0, 7, 100)
-        plt.hist(training_data[:, 4], bins=bin)
+        max_SWH = 3
+        bin = np.linspace(0, max_SWH, 100)
+        plt.hist(training_data[:, num_of_input], bins=bin)
         plt.show()
 
     training_data = torch.from_numpy(training_data)
@@ -138,18 +139,18 @@ def main():
             optimizer.zero_grad()
             output = net(input_data)
             output = torch.squeeze(output)
-            # print(f'output {output}\n label {label}')
 
             loss_val = loss_func(output, label)
             epoch_loss += loss_val.item()
             loss_val.backward()
             optimizer.step()
 
-        if epoch % 5 == 0 or epoch == number_of_epochs:
+        if epoch % 5 == 0 or epoch == number_of_epochs-1:
             print(f'epoch {epoch} loss = {epoch_loss}')
 
     end_time = time.time()
     print(f'time for the training: {end_time - start_time}')
+
     def accuracy(model, ds, ok_error):
         correct = 0
         total = 0
@@ -195,7 +196,7 @@ def main():
 
         return targel_arr, model_guess_arr
 
-    def density_scatter(x, y, ax=None, sort=True, bins=50, mean_absolute_error=None, rmse=None, res=None, **kwargs):
+    def density_scatter(x, y, ax=None, sort=True, bins=50):
         if ax is None:
             fig, ax = plt.subplots()
         data, x_e, y_e = np.histogram2d(x, y, bins=bins, density=True)
@@ -211,7 +212,7 @@ def main():
             x, y, z = x[idx], y[idx], z[idx]
 
         x_eq_y = np.linspace(0, x.max())
-        plt.plot(x_eq_y, x_eq_y, color='green', label='x=y')
+        plt.plot(x_eq_y, x_eq_y, color='orange', label='x=y')
         plt.scatter(x, y, c=z)
 
         sorted_pairs = sorted((i, j) for i, j in zip(x, y))
@@ -224,24 +225,20 @@ def main():
         # change this to e.g 3 to get a polynomial of degree 3 to fit the curve
         order_of_the_fitted_polynomial = 1
         p30 = np.poly1d(np.polyfit(x_sorted, y_sorted, order_of_the_fitted_polynomial))
-        plt.plot(x_sorted, p30(x_sorted), color='aqua', label='linjär anpassning')
+        plt.plot(x_sorted, p30(x_sorted), color='red', label='linjär anpassning')
 
 
         ax.set_aspect('equal', 'box')
+        plt.xlim([0, 2.5])
+        plt.ylim([0, 2.5])
         plt.xlabel("Målvärde [m]")
         plt.ylabel("Prediktion [m]")
-
-        if mean_absolute_error is not None and rmse is not None and res is not None:
-            fig_text = f"MAE={mean_absolute_error:.3f}m\nRMSE={rmse:.3f}m\nR={res:.3f}"
-            plt.plot([], [], ' ', label=fig_text)
-            #plt.text(0, 2.2, s=s, fontsize=12)
 
         # norm = Normalize(vmin=np.min(z), vmax=np.max(z))
         cbar = fig.colorbar(cm.ScalarMappable(), ax=ax)
         cbar.ax.set_ylabel('Densitet')
         ax.legend()
         return ax
-
 
     if get_score:
         target_arr, model_guess_arr = get_model_guess_vs_target_arrs(net, val_data)
@@ -257,9 +254,10 @@ def main():
         mean_absolute_error = np.mean(np.abs(target_arr - model_guess_arr))
         print(f"Mean absolute error: {mean_absolute_error:.3f}")
 
-        density_scatter(target_arr, model_guess_arr, bins=50, mean_absolute_error=mean_absolute_error, rmse=rmse, res=res)
+        bias_error = np.mean(target_arr - model_guess_arr)
+        print(f"bias error: {bias_error:.3f}")
 
-
+        density_scatter(target_arr, model_guess_arr, bins=50)
 
 
 if __name__ == '__main__':
