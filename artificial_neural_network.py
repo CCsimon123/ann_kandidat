@@ -19,14 +19,14 @@ train_data_frac = 0.9
 load_model = True
 save_model = True
 show_histogram = False
-show_val_acc = False
-show_train_acc = False
+show_val_acc = True
+show_train_acc = True
 get_score = True
 
 num_of_input = 3
 batch_size = 5000
-learning_rate = 0.001
-number_of_epochs = 30
+learning_rate = 0.00005
+number_of_epochs = 8000
 
 path_to_save_model_to = r'saved_models\final_model_azm_no_feature3.pth'
 path_to_load_from = r'saved_models\final_model_azm_no_feature3.pth'
