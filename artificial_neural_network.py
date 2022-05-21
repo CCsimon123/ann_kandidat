@@ -1,4 +1,8 @@
+import matplotlib.colors
 import torch
+from matplotlib.colors import BoundaryNorm
+from matplotlib.ticker import MaxNLocator
+from numpy import linspace
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,6 +14,7 @@ from sklearn.metrics import mean_squared_error
 from sklearn.metrics import r2_score
 from matplotlib import cm
 from scipy.interpolate import interpn
+from scipy.stats import kde
 
 # Created by Simon Carlson April 2022
 
@@ -19,8 +24,8 @@ train_data_frac = 0.9
 load_model = True
 save_model = True
 show_histogram = False
-show_val_acc = True
-show_train_acc = True
+show_val_acc = False
+show_train_acc = False
 get_score = True
 
 num_of_input = 3
@@ -211,9 +216,41 @@ def main():
 
         return targel_arr, model_guess_arr
 
-    def density_scatter(x, y, ax=None, sort=True, bins=50):
-        if ax is None:
-            fig, ax = plt.subplots()
+    def density_scatter(x, y, mean_absolute_error=None, rmse=None, res=None, **kwargs):
+        # Calculate the point density
+        from scipy.stats import gaussian_kde
+        xy = np.vstack([x, y])
+        z = gaussian_kde(xy)(xy)
+        fig, ax = plt.subplots()
+        plt.scatter(x, y, c=z, s=20, edgecolor='none', cmap='binary')
+        plt.tick_params(labelsize=15)
+        plt.xticks(size=20, family='Times New Roman')
+        plt.yticks(size=20, family='Times New Roman')
+        # plt.xlabel('x', size=20, family='Times New Roman')
+        # plt.ylabel('y', size=20, family='Times New Roman')
+        cb = plt.colorbar(shrink=0.7)
+        cb.ax.tick_params(labelsize=15)
+        for l in cb.ax.yaxis.get_ticklabels():
+            l.set_family('Times New Roman')
+        plt.figtext(0.76, 0.79, 'Densitet', size=20, family='Times New Roman') # 0.76
+
+        ax.set_aspect('equal', 'box')
+        plt.xlim([0, 2.5])
+        plt.ylim([0, 2.5])
+        plt.xlabel("Målvärde [m]", size=20, family='Times New Roman')
+        plt.ylabel("Prediktion [m]", size=20, family='Times New Roman')
+
+        if mean_absolute_error is not None:
+            fig_text = f"MAE={mean_absolute_error:.3f}m"
+            plt.plot([], [], ' ', label=fig_text)
+        if rmse is not None:
+            fig_text = f"RMSE={rmse:.3f}m"
+            plt.plot([], [], ' ', label=fig_text)
+        if res is not None:
+            fig_text = f"R={res:.3f}"
+            plt.plot([], [], ' ', label=fig_text)
+
+        bins = 50
         data, x_e, y_e = np.histogram2d(x, y, bins=bins, density=True)
         z = interpn((0.5 * (x_e[1:] + x_e[:-1]), 0.5 * (y_e[1:] + y_e[:-1])), data, np.vstack([x, y]).T,
                     method="splinef2d", bounds_error=False)
@@ -222,13 +259,13 @@ def main():
         z[np.where(np.isnan(z))] = 0.0
 
         # Sort the points by density, so that the densest points are plotted last
-        if sort:
-            idx = z.argsort()
-            x, y, z = x[idx], y[idx], z[idx]
+
+        idx = z.argsort()
+        x, y, z = x[idx], y[idx], z[idx]
 
         x_eq_y = np.linspace(0, x.max())
-        plt.plot(x_eq_y, x_eq_y, color='orange', label='x=y')
-        plt.scatter(x, y, c=z)
+        plt.plot(x_eq_y, x_eq_y, color='Orange', label='x=y')
+        # plt.scatter(x, y, c=z)
 
         sorted_pairs = sorted((i, j) for i, j in zip(x, y))
         x_sorted = []
@@ -240,19 +277,11 @@ def main():
         # change this to e.g 3 to get a polynomial of degree 3 to fit the curve
         order_of_the_fitted_polynomial = 1
         p30 = np.poly1d(np.polyfit(x_sorted, y_sorted, order_of_the_fitted_polynomial))
-        plt.plot(x_sorted, p30(x_sorted), color='red', label='linjär anpassning')
+        plt.plot(x_sorted, p30(x_sorted), color='Red', label='linjär anpassning')
 
-
-        ax.set_aspect('equal', 'box')
-        plt.xlim([0, 2.5])
-        plt.ylim([0, 2.5])
-        plt.xlabel("Målvärde [m]")
-        plt.ylabel("Prediktion [m]")
-
-        # norm = Normalize(vmin=np.min(z), vmax=np.max(z))
-        cbar = fig.colorbar(cm.ScalarMappable(), ax=ax)
-        cbar.ax.set_ylabel('Densitet')
         ax.legend()
+
+
         return ax
 
     if get_score:
@@ -272,7 +301,41 @@ def main():
         bias_error = np.mean(target_arr - model_guess_arr)
         print(f"bias error: {bias_error:.3f}")
 
-        density_scatter(target_arr, model_guess_arr, bins=50)
+    density_scatter(target_arr, model_guess_arr, mean_absolute_error=mean_absolute_error)
+
+    '''fig, ax = plt.subplots()
+    target_arr, model_guess_arr = get_model_guess_vs_target_arrs(net, val_data)
+    n_dim = 25
+    arr = np.zeros((n_dim, n_dim))
+    range_min_max = linspace(0, 2.5-(2.5/n_dim), n_dim)
+    box_size = range_min_max[1]-range_min_max[0]
+
+
+    for i in range(len(target_arr)):
+        x = 0
+        y = 0
+        for j, box_x in enumerate(range_min_max):
+            if target_arr[i] > box_x and target_arr[i] < (box_x + box_size):
+                x = j
+                break
+        for k, box_y in enumerate(range_min_max):
+            if model_guess_arr[i] > box_y and model_guess_arr[i] < (box_y + box_size):
+                y = k
+                break
+        # arr[n_dim-y-1, x] += 1
+        arr[y, x] += 1
+    df = pd.DataFrame(arr)
+    #norm = matplotlib.colors.Normalize()
+    plt.pcolormesh(df, cmap='RdBu')  #, norm=norm)
+    plt.colorbar()
+    # plt.xlim([0, 2.5])
+    # plt.ylim([0, 2.5])
+    row_labels = linspace(0, 2.5, 6)
+    col_labels = linspace(0, 2.5, 6)
+    ax.set_xticklabels(row_labels, minor=False)
+    ax.set_yticklabels(col_labels, minor=False)
+
+    plt.show()'''
 
 
 if __name__ == '__main__':
