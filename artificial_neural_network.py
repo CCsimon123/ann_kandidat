@@ -14,7 +14,7 @@ from sklearn.metrics import mean_squared_error
 from sklearn.metrics import r2_score
 from matplotlib import cm
 from scipy.interpolate import interpn
-from scipy.stats import kde
+from scipy.stats import kde, gaussian_kde
 
 # Created by Simon Carlson April 2022
 
@@ -217,22 +217,26 @@ def main():
         return targel_arr, model_guess_arr
 
     def density_scatter(x, y, mean_absolute_error=None, rmse=None, res=None, **kwargs):
+        from mpl_toolkits.axes_grid1 import make_axes_locatable
         # Calculate the point density
+        fig, ax = plt.subplots()
+
+        #np.histogram2d(x, y, bins=100)
+        from matplotlib.colors import LogNorm
+        plt.hist2d(x, y, bins=40, norm=LogNorm())
+
         from scipy.stats import gaussian_kde
         xy = np.vstack([x, y])
         z = gaussian_kde(xy)(xy)
-        fig, ax = plt.subplots()
-        plt.scatter(x, y, c=z, s=20, edgecolor='none', cmap='binary')
+        #im = plt.scatter(x, y, c=z, s=20, edgecolor='none', cmap='viridis', marker='s')
+        #im = plt.scatter(x, y, c=z, marker='s')
+
         plt.tick_params(labelsize=15)
+
         plt.xticks(size=20, family='Times New Roman')
         plt.yticks(size=20, family='Times New Roman')
-        # plt.xlabel('x', size=20, family='Times New Roman')
-        # plt.ylabel('y', size=20, family='Times New Roman')
-        cb = plt.colorbar(shrink=0.7)
-        cb.ax.tick_params(labelsize=15)
-        for l in cb.ax.yaxis.get_ticklabels():
-            l.set_family('Times New Roman')
-        plt.figtext(0.76, 0.79, 'Densitet', size=20, family='Times New Roman') # 0.76
+        cbar = plt.colorbar()
+        cbar.ax.set_ylabel('Counts')
 
         ax.set_aspect('equal', 'box')
         plt.xlim([0, 2.5])
@@ -240,10 +244,8 @@ def main():
         plt.xlabel("Målvärde [m]", size=20, family='Times New Roman')
         plt.ylabel("Prediktion [m]", size=20, family='Times New Roman')
 
-
-
-        bins = 50
-        data, x_e, y_e = np.histogram2d(x, y, bins=bins, density=True)
+        bins = 10
+        data, x_e, y_e = np.histogram2d(x, y, bins=bins)
         z = interpn((0.5 * (x_e[1:] + x_e[:-1]), 0.5 * (y_e[1:] + y_e[:-1])), data, np.vstack([x, y]).T,
                     method="splinef2d", bounds_error=False)
 
@@ -281,8 +283,6 @@ def main():
             plt.plot([], [], ' ', label=fig_text)
 
         ax.legend()
-
-
         return ax
 
     if get_score:
@@ -327,7 +327,7 @@ def main():
         arr[y, x] += 1
     df = pd.DataFrame(arr)
     #norm = matplotlib.colors.Normalize()
-    plt.pcolormesh(df, cmap='RdBu')  #, norm=norm)
+    plt.pcolormesh(df, cmap='Blues')  #, norm=norm)
     plt.colorbar()
     # plt.xlim([0, 2.5])
     # plt.ylim([0, 2.5])
