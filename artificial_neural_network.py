@@ -240,15 +240,7 @@ def main():
         plt.xlabel("Målvärde [m]", size=20, family='Times New Roman')
         plt.ylabel("Prediktion [m]", size=20, family='Times New Roman')
 
-        if mean_absolute_error is not None:
-            fig_text = f"MAE={mean_absolute_error:.3f}m"
-            plt.plot([], [], ' ', label=fig_text)
-        if rmse is not None:
-            fig_text = f"RMSE={rmse:.3f}m"
-            plt.plot([], [], ' ', label=fig_text)
-        if res is not None:
-            fig_text = f"R={res:.3f}"
-            plt.plot([], [], ' ', label=fig_text)
+
 
         bins = 50
         data, x_e, y_e = np.histogram2d(x, y, bins=bins, density=True)
@@ -278,6 +270,15 @@ def main():
         order_of_the_fitted_polynomial = 1
         p30 = np.poly1d(np.polyfit(x_sorted, y_sorted, order_of_the_fitted_polynomial))
         plt.plot(x_sorted, p30(x_sorted), color='Red', label='linjär anpassning')
+        if mean_absolute_error is not None:
+            fig_text = f"MAE={mean_absolute_error:.3f}m"
+            plt.plot([], [], ' ', label=fig_text)
+        if rmse is not None:
+            fig_text = f"RMSE={rmse:.3f}m"
+            plt.plot([], [], ' ', label=fig_text)
+        if res is not None:
+            fig_text = f"R={res:.3f}"
+            plt.plot([], [], ' ', label=fig_text)
 
         ax.legend()
 
