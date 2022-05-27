@@ -70,6 +70,7 @@ class CustomCsvDataset:
         return input_data, label
 
 
+# the neural network
 class Net(torch.nn.Module):
     def __init__(self):
         super(Net, self).__init__()
