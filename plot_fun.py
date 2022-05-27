@@ -53,4 +53,4 @@ def plot_hist2d(x, y, bins=40, mean_absolute_error=None, rmse=None, res=None, **
         plt.plot([], [], ' ', label=fig_text)
 
     ax.legend()
-    return ax
+    plt.show()

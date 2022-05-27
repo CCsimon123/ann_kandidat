@@ -1,10 +1,5 @@
-import matplotlib.colors
 import torch
-from matplotlib.colors import BoundaryNorm
-from matplotlib.ticker import MaxNLocator
-from numpy import linspace
 from torch.utils.data import DataLoader
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from numpy.random import RandomState
@@ -12,27 +7,21 @@ from pathlib import Path
 import time
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import r2_score
-from matplotlib import cm
-from scipy.interpolate import interpn
-from scipy.stats import kde, gaussian_kde
-from plot_fun import *
 
 # Created by Simon Carlson April 2022
 
 # Flags
 create_new_data = False
-train_data_frac = 0.9
 load_model = True
 save_model = True
-show_histogram = False
-show_val_acc = False
-show_train_acc = False
-get_score = True
 
-num_of_input = 3
+# Some hyper parameters
+train_data_frac = 0.9
 batch_size = 5000
 learning_rate = 0.00005
-number_of_epochs = 0
+number_of_epochs = 10
+num_of_input = 3
+
 
 path_to_save_model_to = r'saved_models\final_model_azm_no_feature3.pth'
 path_to_load_from = r'saved_models\final_model_azm_no_feature3.pth'
@@ -57,8 +46,6 @@ if create_new_data:
     df['mean'] = (df['mean'] - df['mean'].mean()) / (df['mean'].std())
     df['var'] = (df['var'] - df['var'].mean()) / (df['var'].std())
     df['azm'] = (df['azm'] - df['azm'].mean()) / (df['azm'].std())
-
-    #df = df[['mean', 'var', 'SWH']]
     df = df[['mean', 'var', 'azm', 'SWH']]
 
     train = df.sample(frac=train_data_frac, random_state=rng)
@@ -70,7 +57,7 @@ if create_new_data:
     test.to_csv(val_path, index=False)
 
 
-class CustomCsvDataset():
+class CustomCsvDataset:
     def __init__(self, dataset):
         self.dataset = dataset.to(device)
 
@@ -87,7 +74,6 @@ class Net(torch.nn.Module):
     def __init__(self):
         super(Net, self).__init__()
         self.hid1 = torch.nn.Linear(num_of_input, 30)
-        #self.drop = torch.nn.Dropout(0.5) # add dropout if the model starts to overfit
         self.hid2 = torch.nn.Linear(30, 30)
         self.hid3 = torch.nn.Linear(30, 30)
         self.hid4 = torch.nn.Linear(30, 30)
@@ -95,7 +81,6 @@ class Net(torch.nn.Module):
         self.hid6 = torch.nn.Linear(30, 30)
         self.hid7 = torch.nn.Linear(30, 30)
         self.hid8 = torch.nn.Linear(30, 30)
-
         self.output = torch.nn.Linear(30, 1)
 
     def forward(self, x):
@@ -107,31 +92,16 @@ class Net(torch.nn.Module):
         z = torch.relu(self.hid6(z))
         z = torch.relu(self.hid7(z))
         z = torch.relu(self.hid8(z))
-        '''
-        z = torch.relu(self.hid2(z))
-        z = torch.relu(self.hid2(z))
-        z = torch.relu(self.hid2(z))
-        z = torch.relu(self.hid2(z))
-        z = torch.relu(self.hid2(z))
-        z = torch.relu(self.hid2(z))
-        z = torch.relu(self.hid2(z))
-        z = torch.relu(self.hid2(z))
-        '''
         z = self.output(z)
         return z
 
 
 def main():
+    # to get results that can be repeated
     torch.manual_seed(4)
     np.random.seed(4)
 
     training_data = np.loadtxt(train_path, dtype=np.float32, delimiter=",", skiprows=1)
-    if show_histogram:
-        max_SWH = 3
-        bin = np.linspace(0, max_SWH, 100)
-        plt.hist(training_data[:, num_of_input], bins=bin)
-        plt.show()
-
     training_data = torch.from_numpy(training_data)
     train_data = CustomCsvDataset(training_data)
     train_dataloader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
@@ -152,22 +122,33 @@ def main():
 
     start_time = time.time()
     for epoch in range(number_of_epochs):
-        torch.manual_seed(1+epoch) # recovery reproducibility
-        epoch_loss = 0.0
+        torch.manual_seed(1+epoch)  # recovery reproducibility
+        epoch_loss_train = 0.0
+        epoch_loss_val = 0.0
 
+        net.train()
         for (idx, X) in enumerate(train_dataloader):
             (input_data, label) = X
             optimizer.zero_grad()
             output = net(input_data)
             output = torch.squeeze(output)
-
-            loss_val = loss_func(output, label)
-            epoch_loss += loss_val.item()
-            loss_val.backward()
+            train_loss = loss_func(output, label)
+            epoch_loss_train += train_loss.item()
+            train_loss.backward()
             optimizer.step()
 
-        if epoch % 5 == 0 or epoch == number_of_epochs-1:
-            print(f'epoch {epoch} loss = {epoch_loss}')
+        net.eval()
+        for (idx, X) in enumerate(val_dataloader):
+            with torch.no_grad():
+                (input_data, label) = X
+                output = net(input_data)
+                output = torch.squeeze(output)
+                val_loss = loss_func(output, label)
+                epoch_loss_val += val_loss.item()
+
+        if epoch % 1 == 0 or epoch == number_of_epochs-1:
+            print(f'epoch {epoch} train loss = {epoch_loss_train}')
+            print(f'epoch {epoch}   val loss = {epoch_loss_train}')
 
     end_time = time.time()
     print(f'time for the training: {end_time - start_time}')
@@ -181,61 +162,50 @@ def main():
             abs_delta = np.abs(output.item()-label.item())
             if abs_delta < ok_error:
                 correct += 1
-            else:
-                pass
-                #print(f'got it wrong: val_data {val_data} label {label}, guessed {output}')
             total += 1
         acc = correct/total
         return acc
 
+    # evaluate the trained model
     net.eval()
     ok_error = 0.2
-    if show_train_acc:
-        train_acc = accuracy(net, train_data, ok_error)
-        print(f'train accuracy: {train_acc}')
-    if show_val_acc:
-        val_acc = accuracy(net, val_data, ok_error)
-        print(f'validation ({ok_error}m) accuracy: {val_acc}')
-
-        ok_error = 0.6
-        val_acc = accuracy(net, val_data, ok_error)
-        print(f'validation ({ok_error}m) accuracy: {val_acc}')
+    train_acc = accuracy(net, train_data, ok_error)
+    print(f'train accuracy: {train_acc}')
+    val_acc = accuracy(net, val_data, ok_error)
+    print(f'validation ({ok_error}m) accuracy: {val_acc}')
 
     if save_model:
         torch.save(net.state_dict(), path_to_save_model_to)
 
-    def get_model_guess_vs_target_arrs(model, ds):
+    def get_model_guess_vs_target_arr(model, ds):
         model_guess_arr = np.empty(len(ds))
-        targel_arr = np.empty(len(ds))
+        target_arr = np.empty(len(ds))
 
         for i, data in enumerate(ds):
             val_data, label = data
             with torch.no_grad():
                 output = model(val_data)
-            targel_arr[i] = label
+            target_arr[i] = label
             model_guess_arr[i] = output
 
-        return targel_arr, model_guess_arr
+        return target_arr, model_guess_arr
 
-    if get_score:
-        target_arr, model_guess_arr = get_model_guess_vs_target_arrs(net, val_data)
-        # Calculates RMSE, R-value and MAE
-        mse = mean_squared_error(target_arr, model_guess_arr)
-        rmse = np.sqrt(mse)
-        print(f"RMSE for full validation set: {rmse:.3f}")
+    target_arr, model_guess_arr = get_model_guess_vs_target_arr(net, val_data)
+    # Calculates RMSE, R-value and MAE
+    mse = mean_squared_error(target_arr, model_guess_arr)
+    rmse = np.sqrt(mse)
+    print(f"RMSE for full validation set: {rmse:.3f}")
 
-        res = r2_score(target_arr, model_guess_arr)
-        res = np.sqrt(res)
-        print(f"R-value for full validation set: {res:.3f}")
+    res = r2_score(target_arr, model_guess_arr)
+    res = np.sqrt(res)
+    print(f"R-value for full validation set: {res:.3f}")
 
-        mean_absolute_error = np.mean(np.abs(target_arr - model_guess_arr))
-        print(f"Mean absolute error: {mean_absolute_error:.3f}")
+    mean_absolute_error = np.mean(np.abs(target_arr - model_guess_arr))
+    print(f"Mean absolute error: {mean_absolute_error:.3f}")
 
-        bias_error = np.mean(target_arr - model_guess_arr)
-        print(f"bias error: {bias_error:.3f}")
-
-        plot_hist2d(target_arr, model_guess_arr, bins=40)
+    bias_error = np.mean(target_arr - model_guess_arr)
+    print(f"bias error: {bias_error:.3f}")
 
 if __name__ == '__main__':
     main()
-    plt.show()
+
