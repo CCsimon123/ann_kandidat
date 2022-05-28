@@ -7,6 +7,7 @@ from pathlib import Path
 import time
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import r2_score
+from plot_fun import *
 
 # Created by Simon Carlson April 2022
 
@@ -206,7 +207,10 @@ def main():
 
     bias_error = np.mean(target_arr - model_guess_arr)
     print(f"bias error: {bias_error:.3f}")
+    # uncomment to plot the validation data
+    # plot_hist2d(target_arr, model_guess_arr)
 
 if __name__ == '__main__':
     main()
+
 
